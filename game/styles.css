@@ -59,3 +59,27 @@
         height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.hud-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: monospace;
+    min-width: 200px;
+}
+
+.hud-panel h3 {
+    margin: 0 0 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 5px;
+}
+
+.hud-panel p {
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+}

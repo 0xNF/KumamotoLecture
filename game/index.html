@@ -5,15 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shape Shifter - Anime.js Version</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         body {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
             background: #f0f0f0;
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .status-panel {
+            width: 250px;
+            background: linear-gradient(135deg, #1a1f25 0%, #2b323a 100%);
+            color: #e0e0e0;
+            padding: 2rem;
+            height: 100vh;
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .status-panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: #fff;
+            border-bottom: 2px solid #3c4654;
+            padding-bottom: 1rem;
+        }
+        .status-item {
+            margin-bottom: 1.5rem;
+        }
+        .status-label {
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            color: #8b95a5;
+            margin-bottom: 0.5rem;
+        }
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
         }
         .container {
             text-align: center;
@@ -43,21 +83,38 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="shape-container">
-            <div class="shape" id="morphingShape"></div>
+    <div class="status-panel">
+        <h2>Shape Status</h2>
+        <div class="status-item">
+            <div class="status-label">Current Shape</div>
+            <div class="status-value" id="hudShape">circle</div>
         </div>
-        <div class="controls">
-            <select id="shapeSelect">
-                <option value="circle">Circle</option>
-                <option value="square">Square</option>
-                <option value="pentagon">Pentagon</option>
-                <option value="hexagon">Hexagon</option>
-                <option value="trapezoid">Trapezoid</option>
-            </select>
-            <input type="color" id="colorPicker" value="#0000ff">
-            <input type="range" id="sizeSlider" min="50" max="200" value="100">
-            <button onclick="shapeshift()">Shapeshift!</button>
+        <div class="status-item">
+            <div class="status-label">Color</div>
+            <div class="status-value" id="hudColor">#0000ff</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Size</div>
+            <div class="status-value" id="hudSize">100%</div>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="container">
+            <div class="shape-container">
+                <div class="shape" id="morphingShape"></div>
+            </div>
+            <div class="controls">
+                <select id="shapeSelect">
+                    <option value="circle">Circle</option>
+                    <option value="square">Square</option>
+                    <option value="pentagon">Pentagon</option>
+                    <option value="hexagon">Hexagon</option>
+                    <option value="trapezoid">Trapezoid</option>
+                </select>
+                <input type="color" id="colorPicker" value="#0000ff">
+                <input type="range" id="sizeSlider" min="50" max="200" value="100">
+                <button onclick="shapeshift()">Shapeshift!</button>
+            </div>
         </div>
     </div>
     <script src="script.js"></script>
