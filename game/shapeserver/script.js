@@ -10,7 +10,8 @@ const shapes = {
 // WebSocket connection
 let ws;
 function connectWebSocket() {
-    ws = new WebSocket('ws://localhost:8080/ws');
+    ws = new WebSocket(`wss://${window.location.host}/ws`);
+
     
     ws.onopen = () => {
         console.log('Connected to server');
