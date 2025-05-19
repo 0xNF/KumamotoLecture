@@ -86,6 +86,11 @@ function shapeshift() {
             height: size + 'px',
             duration: 800
         }, '-=800');
+
+    // Update HUD
+    document.getElementById('hudShape').textContent = shape;
+    document.getElementById('hudColor').textContent = color;
+    document.getElementById('hudSize').textContent = Math.round((size / 200) * 100);
 }
 
 // Initialize with default blue circle
