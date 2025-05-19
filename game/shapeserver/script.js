@@ -7,6 +7,36 @@ const shapes = {
     trapezoid: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)'
 };
 
+// WebSocket connection
+let ws;
+function connectWebSocket() {
+    ws = new WebSocket('ws://localhost:8080/ws');
+    
+    ws.onopen = () => {
+        console.log('Connected to server');
+    };
+    
+    ws.onmessage = (event) => {
+        const state = JSON.parse(event.data);
+        updateShapeFromState(state);
+    };
+    
+    ws.onclose = () => {
+        console.log('Disconnected from server');
+        setTimeout(connectWebSocket, 1000); // Reconnect after 1 second
+    };
+}
+
+// Update shape based on received state
+function updateShapeFromState(state) {
+    document.getElementById('shapeSelect').value = state.shape;
+    document.getElementById('colorPicker').value = state.color;
+    document.getElementById('sizeSlider').value = state.size;
+    
+    // Animate to new state
+    shapeshift(false); // false means don't broadcast the change
+}
+
 // Convert clip-path string to points array for animation
 function parseClipPath(clipPath) {
     if (clipPath.startsWith('circle')) {
@@ -32,7 +62,7 @@ function parseClipPath(clipPath) {
 }
 
 // Main shapeshift function
-function shapeshift() {
+function shapeshift(broadcast = true) {
     const shape = document.getElementById('shapeSelect').value;
     const color = document.getElementById('colorPicker').value;
     const size = document.getElementById('sizeSlider').value;
@@ -91,10 +121,20 @@ function shapeshift() {
     document.getElementById('hudShape').textContent = shape;
     document.getElementById('hudColor').textContent = color;
     document.getElementById('hudSize').textContent = Math.round((size / 200) * 100);
+
+    // Send state update to server
+    if (broadcast && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            shape: shape,
+            color: color,
+            size: parseInt(size)
+        }));
+    }
 }
 
-// Initialize with default blue circle
+// Initialize with default blue circle and connect WebSocket
 document.addEventListener('DOMContentLoaded', () => {
     const element = document.getElementById('morphingShape');
     element.style.clipPath = shapes.circle;
+    connectWebSocket();
 });
