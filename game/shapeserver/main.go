@@ -112,9 +112,15 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Serve static files from the current directory
+	fs := http.FileServer(http.Dir("."))
+	http.Handle("/", fs)
+
+	// WebSocket endpoint
 	http.HandleFunc("/ws", handleWebSocket)
 
 	log.Println("Starting server on :8080")
+	log.Println("Open http://localhost:8080 in your browser")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
