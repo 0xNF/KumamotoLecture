@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -33,6 +35,8 @@ var (
 			return true // Allow all origins in development
 		},
 	}
+
+	port = 9876
 )
 
 // sendState broadcasts the current shape state to all connected clients
@@ -111,17 +115,71 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		j, err := json.Marshal(state)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("failed to marshal state"))
+			return
+		}
+		w.Header().Add("content-type", "application/json")
+		w.WriteHeader(200)
+		w.Write(j)
+	} else if r.Method == http.MethodPost {
+		defer r.Body.Close()
+		var foundState ShapeState
+
+		bytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid request body"))
+			return
+		}
+		err = json.Unmarshal(bytes, &foundState)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid ShapeStatus supplied, cannot update shape"))
+		} else {
+			w.WriteHeader(201)
+		}
+
+		// Keep old fields in case we only got a partial update
+		newState := state
+		if foundState.Color != "" {
+			newState.Color = foundState.Color
+		}
+		if foundState.Shape != "" {
+			newState.Shape = foundState.Shape
+		}
+		if foundState.Size != 0 {
+			newState.Size = foundState.Size
+		}
+
+		stateMutex.Lock()
+		state = newState
+		stateMutex.Unlock()
+		sendState(state)
+
+	} else {
+		w.WriteHeader(400)
+		w.Write([]byte("Unsupported Method"))
+	}
+}
+
 func main() {
 	// Serve static files from the current directory
-	fs := http.FileServer(http.Dir("."))
+	fs := http.FileServer(http.FS(FrontendFS))
 	http.Handle("/", fs)
 
 	// WebSocket endpoint
 	http.HandleFunc("/ws", handleWebSocket)
 
-	log.Println("Starting server on :8080")
-	log.Println("Open http://localhost:8080 in your browser")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	http.HandleFunc("/api/status", handleStatus)
+
+	log.Printf("Starting server on :%d\n", port)
+	log.Printf("Open https://localhost:%d in your browser", port)
+	if err := http.ListenAndServeTLS(fmt.Sprintf(":%d", port), "server.crt", "server.key", nil); err != nil {
 		log.Fatal(err)
 	}
 }
