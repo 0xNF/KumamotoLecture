@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape Shifter - Anime.js Version</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+        }
+        .shape-container {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            position: relative;
+        }
+        .shape {
+            width: 100%;
+            height: 100%;
+            background: blue;
+            clip-path: circle(50%);
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        select, button {
+            margin: 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="shape-container">
+            <div class="shape" id="morphingShape"></div>
+        </div>
+        <div class="controls">
+            <select id="shapeSelect">
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
+                <option value="pentagon">Pentagon</option>
+                <option value="hexagon">Hexagon</option>
+                <option value="trapezoid">Trapezoid</option>
+            </select>
+            <input type="color" id="colorPicker" value="#0000ff">
+            <input type="range" id="sizeSlider" min="50" max="200" value="100">
+            <button onclick="shapeshift()">Shapeshift!</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+#container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 2rem;
+}
+
+.shape {
+    width: 150px;
+    height: 150px;
+    background: blue;
+    position: relative;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base shape definitions using CSS custom properties for animation */
+.shape {
+    --circle: circle(50% at 50% 50%);
+    --square: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+    --pentagon: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    --hexagon: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    --trapezoid: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+}
+
+/* Initial state */
+.shape.circle {
+    clip-path: var(--circle);
+}
+
+.shape.square {
+    clip-path: var(--square);
+}
+
+.shape.pentagon {
+    clip-path: var(--pentagon);
+}
+
+.shape.hexagon {
+    clip-path: var(--hexagon);
+}
+
+.shape.trapezoid {
+    clip-path: var(--trapezoid);
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Ensure smooth transitions for all properties */
+.shape {
+    transition: 
+        clip-path 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+        width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+        height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
