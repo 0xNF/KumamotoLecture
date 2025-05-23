@@ -53,7 +53,7 @@ func main() {
 		mcp.WithNumber("size", mcp.Min(0), mcp.Max(200), mcp.MultipleOf(1)),
 	)
 	// Add Shapeshift Tool handler
-	s.AddTool(toolShapeshift, shapeshiftHandler)
+	s.AddTool(toolShapeshift, mcp.NewTypedToolHandler(shapeshiftHandler))
 
 	// Start the stdio server
 	if err := server.ServeStdio(s); err != nil {
@@ -85,18 +85,8 @@ func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 	return mcp.NewToolResultText(string(bytes)), nil
 }
 
-func shapeshiftHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	shape, _ := request.Params.Arguments["shape"].(string)
-	color, _ := request.Params.Arguments["color"].(string)
-	size, _ := request.Params.Arguments["size"].(float64)
-
-	shapeState := ShapeState{
-		shape,
-		color,
-		int(size),
-	}
-
-	jsonData, err := json.Marshal(shapeState)
+func shapeshiftHandler(ctx context.Context, request mcp.CallToolRequest, shape ShapeState) (*mcp.CallToolResult, error) {
+	jsonData, err := json.Marshal(shape)
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("failed to marshal shape", err), nil
 	}
