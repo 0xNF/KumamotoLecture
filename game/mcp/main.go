@@ -9,10 +9,15 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/spf13/cobra"
 )
+
+const APPNAME = "Shapeshifter"
+const VERSION = "1.0.0"
 
 type ShapeState struct {
 	Shape string `json:"shape"`
@@ -20,8 +25,12 @@ type ShapeState struct {
 	Size  int    `json:"size"`
 }
 
-var addr = "https://18.183.57.194:9876"
-
+var (
+	addrBind string
+	addrPort uint16
+	addr     = "http%s://%s:%d"
+	sseMode  bool
+)
 var tr = &http.Transport{
 	TLSClientConfig: &tls.Config{
 		InsecureSkipVerify: true,
@@ -30,10 +39,27 @@ var tr = &http.Transport{
 var client = &http.Client{Transport: tr}
 
 func main() {
+	rootCmd := &cobra.Command{
+		Use:   strings.ToLower(APPNAME),
+		Short: "Shapeshifter MCP Server",
+		Run:   run,
+	}
+
+	// Add the SSE mode flag
+	rootCmd.Flags().BoolVar(&sseMode, "ssemode", false, "Enable Server-Sent Events mode")
+
+	// Execute the root command
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(cmd *cobra.Command, args []string) {
 	// Create a new MCP server
 	s := server.NewMCPServer(
-		"Shapeshifter",
-		"1.0.0",
+		APPNAME,
+		VERSION,
+		// Server has tools, and the tools list does not change
 		server.WithToolCapabilities(false),
 	)
 
@@ -55,10 +81,39 @@ func main() {
 	// Add Shapeshift Tool handler
 	s.AddTool(toolShapeshift, mcp.NewTypedToolHandler(shapeshiftHandler))
 
-	// Start the stdio server
-	if err := server.ServeStdio(s); err != nil {
-		fmt.Printf("Server error: %v\n", err)
+	// Check for Server Side mode, or Local Mode
+	sseMode := false
+	if cmd.Flags().Changed("ssemode") {
+		sseMode, _ = cmd.Flags().GetBool("ssemode")
 	}
+	if sseMode {
+		setRemoteConfig()
+
+		httpServer := server.NewSSEServer(s)
+		log.Printf("HTTP server listening on :%d/mcp\n", addrPort)
+		if err := httpServer.Start(fmt.Sprintf(":%d", addrPort)); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	} else {
+		setLocalConfig()
+
+		// Start the stdio server
+		if err := server.ServeStdio(s); err != nil {
+			fmt.Printf("Server error: %v\n", err)
+		}
+	}
+}
+
+func setRemoteConfig() {
+	addrBind = "localhost"
+	addrPort = 9875
+	addr = fmt.Sprintf(addr, "", addrBind, addrPort)
+}
+
+func setLocalConfig() {
+	addrBind = "18.183.57.194"
+	addrPort = 9876
+	addr = fmt.Sprintf(addr, "s", addrBind, addrPort)
 }
 
 func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -68,7 +123,6 @@ func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
