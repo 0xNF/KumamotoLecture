@@ -32,8 +32,6 @@ const (
 
 var (
 	hostAPIServer string
-	hostMCPServer string
-
 	addrAPIServer string
 	sseMode       bool
 )
@@ -62,6 +60,22 @@ func main() {
 }
 
 func run(cmd *cobra.Command, args []string) {
+
+	// Instantiate the server and put our Tools into it
+	s := buildServer()
+
+	// Check for Server Side mode, or Local Mode
+	sseMode := false
+	if cmd.Flags().Changed("ssemode") {
+		sseMode, _ = cmd.Flags().GetBool("ssemode")
+	}
+
+	// Run the MCP Server as either stdio, or in sse mode
+	runServer(s, sseMode)
+}
+
+// buildServer configures the MCPServer with name, version, capabilities, and tool definitions
+func buildServer() *server.MCPServer {
 	// Create a new MCP server
 	s := server.NewMCPServer(
 		APPNAME,
@@ -88,40 +102,10 @@ func run(cmd *cobra.Command, args []string) {
 	// Add Shapeshift Tool handler
 	s.AddTool(toolShapeshift, mcp.NewTypedToolHandler(shapeshiftHandler))
 
-	// Check for Server Side mode, or Local Mode
-	sseMode := false
-	if cmd.Flags().Changed("ssemode") {
-		sseMode, _ = cmd.Flags().GetBool("ssemode")
-	}
-	if sseMode {
-		setSSEConfig()
-
-		httpServer := server.NewSSEServer(s)
-		log.Printf("HTTP server listening on :%d/mcp\n", portMCPServer)
-		if err := httpServer.Start(fmt.Sprintf(":%d", portMCPServer)); err != nil {
-			log.Fatalf("Server error: %v", err)
-		}
-	} else {
-		setStdioConfig()
-
-		// Start the stdio server
-		if err := server.ServeStdio(s); err != nil {
-			fmt.Printf("Server error: %v\n", err)
-		}
-	}
+	return s
 }
 
-func setSSEConfig() {
-	hostAPIServer = "localhost"
-	hostMCPServer = "localhost"
-	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
-}
-
-func setStdioConfig() {
-	hostAPIServer = "18.183.57.194"
-	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
-}
-
+// statusHandler defines the Status tool, which returns the server's current Shape state
 func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	resp, err := client.Get(fmt.Sprintf("%s/api/status", addrAPIServer))
 	if err != nil {
@@ -145,6 +129,7 @@ func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 	return mcp.NewToolResultText(string(bytes)), nil
 }
 
+// shapeshiftHandler defines the Shapeshift tool, which transforms the current Shape according to the input
 func shapeshiftHandler(ctx context.Context, request mcp.CallToolRequest, shape ShapeState) (*mcp.CallToolResult, error) {
 	jsonData, err := json.Marshal(shape)
 	if err != nil {
@@ -163,4 +148,36 @@ func shapeshiftHandler(ctx context.Context, request mcp.CallToolRequest, shape S
 
 	return mcp.NewToolResultText("{result: \"200, OK\"}"), nil
 
+}
+
+// runServer runs the MCP server in either Stdio (local) or SSE (remote) mode
+func runServer(s *server.MCPServer, sseMode bool) {
+	if sseMode {
+		setSSEConfig()
+
+		httpServer := server.NewSSEServer(s)
+		log.Printf("HTTP server listening on :%d/mcp\n", portMCPServer)
+		if err := httpServer.Start(fmt.Sprintf(":%d", portMCPServer)); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	} else {
+		setStdioConfig()
+
+		// Start the stdio server
+		if err := server.ServeStdio(s); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	}
+}
+
+// setSSEConfig sets config values necessary for running in SSE (remote) mode
+func setSSEConfig() {
+	hostAPIServer = "localhost"
+	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
+}
+
+// setStdioConfig sets config values necessary for running Stdio (local) mode
+func setStdioConfig() {
+	hostAPIServer = "18.183.57.194"
+	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
 }
