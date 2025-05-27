@@ -10,47 +10,51 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 )
 
-const APPNAME = "Shapeshifter"
-const VERSION = "1.0.0"
-
-type ShapeState struct {
-	Shape string `json:"shape"`
-	Color string `json:"color"`
-	Size  int    `json:"size"`
-}
-
 const (
-	portAPIServer uint16 = 9876
-	portMCPServer uint16 = 9875
+	appName = "Shapeshifter"
+	version = "1.0.0"
+	portAPI = 9876
+	portMCP = 9875
 )
 
 var (
 	hostAPIServer string
 	addrAPIServer string
 	sseMode       bool
+
+	// httpClient is defined custom because we need to work with self-signed certs on the API server
+	httpClient = &http.Client{
+		Timeout: 15 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 )
 
-var tr = &http.Transport{
-	TLSClientConfig: &tls.Config{
-		InsecureSkipVerify: true,
-	},
+// ShapeState represents the current state of a shape
+type ShapeState struct {
+	Shape string `json:"shape"`
+	Color string `json:"color"`
+	Size  int    `json:"size"`
 }
-var client = &http.Client{Transport: tr}
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   strings.ToLower(APPNAME),
+		Use:   strings.ToLower(appName),
 		Short: "Shapeshifter MCP Server",
-		Run:   run,
+		Run:   runCommand,
 	}
 
-	// Add the SSE mode flag
+	// Add SSE mode flag
 	rootCmd.Flags().BoolVar(&sseMode, "ssemode", false, "Enable Server-Sent Events mode")
 
 	// Execute the root command
@@ -59,18 +63,16 @@ func main() {
 	}
 }
 
-func run(cmd *cobra.Command, args []string) {
-
-	// Instantiate the server and put our Tools into it
+func runCommand(cmd *cobra.Command, args []string) {
+	// Instantiate the server and add our Tools into it
 	s := buildServer()
 
-	// Check for Server Side mode, or Local Mode
-	sseMode := false
+	// Determine SSE mode
 	if cmd.Flags().Changed("ssemode") {
 		sseMode, _ = cmd.Flags().GetBool("ssemode")
 	}
 
-	// Run the MCP Server as either stdio, or in sse mode
+	// Run the MCP Server
 	runServer(s, sseMode)
 }
 
@@ -78,106 +80,119 @@ func run(cmd *cobra.Command, args []string) {
 func buildServer() *server.MCPServer {
 	// Create a new MCP server
 	s := server.NewMCPServer(
-		APPNAME,
-		VERSION,
-		// Server has tools, and the tools list does not change
+		appName,
+		version,
 		server.WithToolCapabilities(false),
 	)
 
 	// Add Status Tool
-	nameStatus := "shapeStatus"
-	descStatus := "Gets the current status of the Shape"
-	toolStatus := mcp.NewTool(nameStatus, mcp.WithDescription(descStatus))
-	// Add Status Tool handler
-	s.AddTool(toolStatus, statusHandler)
+	addStatusTool(s)
 
 	// Add Shapeshift Tool
-	nameShapeshift := "shapeshift"
-	descShapeshift := "Changes the Shape to the given parameters. Fields will be left as default if not supplied. Color is standard web hex colors for use in HTML, convert user colors to HTML. Size is always an integer."
-	toolShapeshift := mcp.NewTool(nameShapeshift, mcp.WithDescription(descShapeshift),
-		mcp.WithString("shape", mcp.Enum("circle", "square", "pentagon", "hexagon", "trapezoid")),
-		mcp.WithString("color"),
-		mcp.WithNumber("size", mcp.Min(0), mcp.Max(200), mcp.MultipleOf(1)),
-	)
-	// Add Shapeshift Tool handler
-	s.AddTool(toolShapeshift, mcp.NewTypedToolHandler(shapeshiftHandler))
+	addShapeshiftTool(s)
 
 	return s
 }
 
-// statusHandler defines the Status tool, which returns the server's current Shape state
+// addStatusTool adds the status tool to the MCP server
+func addStatusTool(s *server.MCPServer) {
+	toolName := "shapeStatus"
+	toolDesc := "Gets the current status of the Shape"
+	tool := mcp.NewTool(toolName, mcp.WithDescription(toolDesc))
+	s.AddTool(tool, statusHandler)
+}
+
+// addShapeshiftTool adds the shapeshift tool to the MCP server
+func addShapeshiftTool(s *server.MCPServer) {
+	toolName := "shapeshift"
+	toolDesc := "Changes the Shape to the given parameters. Fields will be left as default if not supplied."
+	tool := mcp.NewTool(
+		toolName,
+		mcp.WithDescription(toolDesc),
+		mcp.WithString("shape", mcp.Enum("circle", "square", "pentagon", "hexagon", "trapezoid")),
+		mcp.WithString("color"),
+		mcp.WithNumber("size", mcp.Min(0), mcp.Max(200), mcp.MultipleOf(1)),
+	)
+	s.AddTool(tool, mcp.NewTypedToolHandler(shapeshiftHandler))
+}
+
+// statusHandler retrieves the current shape status
 func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	resp, err := client.Get(fmt.Sprintf("%s/api/status", addrAPIServer))
+	resp, err := httpClient.Get(fmt.Sprintf("%s/api/status", addrAPIServer))
 	if err != nil {
-		log.Fatal(err)
+		return mcp.NewToolResultErrorFromErr("mcp server failed to query shape status", err), nil
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return mcp.NewToolResultErrorFromErr("mcp server failed to read request body", err), nil
 	}
 
 	var newState ShapeState
 	if err := json.Unmarshal(body, &newState); err != nil {
-		log.Printf("Error unmarshaling message: %v", err)
-		return mcp.NewToolResultErrorFromErr("error unmarshalling response", err), nil
+		return mcp.NewToolResultErrorFromErr("mcp server failed to serialize response", err), nil
 	}
 
 	bytes, _ := json.Marshal(newState)
-
 	return mcp.NewToolResultText(string(bytes)), nil
 }
 
-// shapeshiftHandler defines the Shapeshift tool, which transforms the current Shape according to the input
+// shapeshiftHandler changes the shape according to the input
 func shapeshiftHandler(ctx context.Context, request mcp.CallToolRequest, shape ShapeState) (*mcp.CallToolResult, error) {
 	jsonData, err := json.Marshal(shape)
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr("failed to marshal shape", err), nil
+		return mcp.NewToolResultErrorFromErr("mcp server failed to deserialize request", err), nil
 	}
 
-	resp, err := client.Post(
+	resp, err := httpClient.Post(
 		fmt.Sprintf("%s/api/status", addrAPIServer),
 		"application/json",
 		bytes.NewReader(jsonData),
 	)
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr("failed to shapeshift on server", err), nil
+		return mcp.NewToolResultErrorFromErr("failed to shapeshift on API server", err), nil
 	}
 	defer resp.Body.Close()
 
 	return mcp.NewToolResultText("{result: \"200, OK\"}"), nil
-
 }
 
-// runServer runs the MCP server in either Stdio (local) or SSE (remote) mode
+// runServer runs the MCP server in either Stdio or SSE mode
 func runServer(s *server.MCPServer, sseMode bool) {
 	if sseMode {
 		setSSEConfig()
-
-		httpServer := server.NewSSEServer(s)
-		log.Printf("HTTP server listening on :%d/mcp\n", portMCPServer)
-		if err := httpServer.Start(fmt.Sprintf(":%d", portMCPServer)); err != nil {
-			log.Fatalf("Server error: %v", err)
-		}
+		runSSEServer(s)
 	} else {
 		setStdioConfig()
-
-		// Start the stdio server
-		if err := server.ServeStdio(s); err != nil {
-			log.Fatalf("Server error: %v", err)
-		}
+		runStdioServer(s)
 	}
 }
 
-// setSSEConfig sets config values necessary for running in SSE (remote) mode
-func setSSEConfig() {
-	hostAPIServer = "localhost"
-	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
+// runSSEServer starts the SSE server
+func runSSEServer(s *server.MCPServer) {
+	httpServer := server.NewSSEServer(s)
+	log.Printf("HTTP server listening on :%d/mcp\n", portMCP)
+	if err := httpServer.Start(fmt.Sprintf(":%d", portMCP)); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
-// setStdioConfig sets config values necessary for running Stdio (local) mode
+// runStdioServer starts the Stdio server
+func runStdioServer(s *server.MCPServer) {
+	if err := server.ServeStdio(s); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}
+
+// setSSEConfig sets config values for SSE (remote) mode
+func setSSEConfig() {
+	hostAPIServer = "localhost"
+	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPI)
+}
+
+// setStdioConfig sets config values for Stdio (local) mode
 func setStdioConfig() {
 	hostAPIServer = "18.183.57.194"
-	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
+	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPI)
 }
