@@ -28,7 +28,7 @@ type ShapeState struct {
 var (
 	addrBind string
 	addrPort uint16
-	addr     = "http%s://%s:%d"
+	addr     = "https://%s:%d"
 	sseMode  bool
 )
 var tr = &http.Transport{
@@ -107,13 +107,13 @@ func run(cmd *cobra.Command, args []string) {
 func setRemoteConfig() {
 	addrBind = "localhost"
 	addrPort = 9875
-	addr = fmt.Sprintf(addr, "", addrBind, addrPort)
+	addr = fmt.Sprintf(addr, addrBind, addrPort)
 }
 
 func setLocalConfig() {
 	addrBind = "18.183.57.194"
 	addrPort = 9876
-	addr = fmt.Sprintf(addr, "s", addrBind, addrPort)
+	addr = fmt.Sprintf(addr, addrBind, addrPort)
 }
 
 func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
