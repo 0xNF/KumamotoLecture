@@ -25,9 +25,12 @@ const (
 )
 
 var (
+	// hostAPIServer is either 'localhost' when running in SSE Mode because it is co-located with the API server, or the IP of the API server if stdio
 	hostAPIServer string
+	// addrAPIServer is the fully formatted scheme:host:port of the API server where the Shapeshift methods actually reside
 	addrAPIServer string
-	sseMode       bool
+	// sseMode enables this program to run in remote (Server Side Events) mode
+	sseMode bool
 
 	// httpClient is defined custom because we need to work with self-signed certs on the API server
 	httpClient = &http.Client{
