@@ -25,12 +25,19 @@ type ShapeState struct {
 	Size  int    `json:"size"`
 }
 
-var (
-	addrBind string
-	addrPort uint16
-	addr     = "https://%s:%d"
-	sseMode  bool
+const (
+	portAPIServer uint16 = 9876
+	portMCPServer uint16 = 9875
 )
+
+var (
+	hostAPIServer string
+	hostMCPServer string
+
+	addrAPIServer string
+	sseMode       bool
+)
+
 var tr = &http.Transport{
 	TLSClientConfig: &tls.Config{
 		InsecureSkipVerify: true,
@@ -87,15 +94,15 @@ func run(cmd *cobra.Command, args []string) {
 		sseMode, _ = cmd.Flags().GetBool("ssemode")
 	}
 	if sseMode {
-		setRemoteConfig()
+		setSSEConfig()
 
 		httpServer := server.NewSSEServer(s)
-		log.Printf("HTTP server listening on :%d/mcp\n", addrPort)
-		if err := httpServer.Start(fmt.Sprintf(":%d", addrPort)); err != nil {
+		log.Printf("HTTP server listening on %s:%d/mcp\n", hostMCPServer, portMCPServer)
+		if err := httpServer.Start(fmt.Sprintf("%s:%d", hostMCPServer, portMCPServer)); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}
 	} else {
-		setLocalConfig()
+		setStdioConfig()
 
 		// Start the stdio server
 		if err := server.ServeStdio(s); err != nil {
@@ -104,20 +111,19 @@ func run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func setRemoteConfig() {
-	addrBind = "localhost"
-	addrPort = 9875
-	addr = fmt.Sprintf(addr, addrBind, addrPort)
+func setSSEConfig() {
+	hostAPIServer = "localhost"
+	hostMCPServer = "localhost"
+	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
 }
 
-func setLocalConfig() {
-	addrBind = "18.183.57.194"
-	addrPort = 9876
-	addr = fmt.Sprintf(addr, addrBind, addrPort)
+func setStdioConfig() {
+	hostAPIServer = "18.183.57.194"
+	addrAPIServer = fmt.Sprintf("https://%s:%d", hostAPIServer, portAPIServer)
 }
 
 func statusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	resp, err := client.Get(fmt.Sprintf("%s/api/status", addr))
+	resp, err := client.Get(fmt.Sprintf("%s/api/status", addrAPIServer))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -146,7 +152,7 @@ func shapeshiftHandler(ctx context.Context, request mcp.CallToolRequest, shape S
 	}
 
 	resp, err := client.Post(
-		fmt.Sprintf("%s/api/status", addr),
+		fmt.Sprintf("%s/api/status", addrAPIServer),
 		"application/json",
 		bytes.NewReader(jsonData),
 	)
