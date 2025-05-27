@@ -97,8 +97,8 @@ func run(cmd *cobra.Command, args []string) {
 		setSSEConfig()
 
 		httpServer := server.NewSSEServer(s)
-		log.Printf("HTTP server listening on %s:%d/mcp\n", hostMCPServer, portMCPServer)
-		if err := httpServer.Start(fmt.Sprintf("%s:%d", hostMCPServer, portMCPServer)); err != nil {
+		log.Printf("HTTP server listening on :%d/mcp\n", portMCPServer)
+		if err := httpServer.Start(fmt.Sprintf(":%d", portMCPServer)); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}
 	} else {
