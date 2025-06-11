@@ -9,6 +9,8 @@ pkill -f shapeshifter || true
 
 
 pushd dist
+ln -s ~/server.crt server.crt
+ln -s ~/server.key server.key
 # Launch shapeserver
 nohup ./shapeserver > shapeserver.log 2>&1 &
 # Launch shapeshifter
