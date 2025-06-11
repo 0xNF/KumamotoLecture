@@ -7,13 +7,11 @@ set -e
 pkill -f shapeserver || true
 pkill -f shapeshifter || true
 
-# Launch shapeserver
-pushd game/shapeserver/
-nohup ./shapeserver > shapeserver.log 2>&1 &
-popd
 
+pushd dist
+# Launch shapeserver
+nohup ./shapeserver > shapeserver.log 2>&1 &
 # Launch shapeshifter
-pushd game/mcp
 nohup ./shapeshifter --httpmode > shapeshifter.log 2>&1 &
 popd
 
