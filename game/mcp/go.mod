@@ -1,9 +1,9 @@
-module mcpdemo
+module shapeshifter
 
 go 1.24.0
 
 require (
-	github.com/mark3labs/mcp-go v0.30.0
+	github.com/mark3labs/mcp-go v0.31.0
 	github.com/spf13/cobra v1.9.1
 )
 
