@@ -1,1 +1,0 @@
-Print the first 10 entries of the Fibonacci Sequence 
