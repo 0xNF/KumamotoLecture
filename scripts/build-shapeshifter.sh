@@ -15,7 +15,7 @@ if [ -f ../../dist/shapeshifter ]; then
 fi
 
 # Build shapeshifter directly to dist
-go build -o ../../dist/shapeshifter cmd/main.go
+go build -o ../../dist/shapeshifter cmd/shapeshifter/main.go
 
 # Return to previous directory
 popd
